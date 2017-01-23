@@ -10,11 +10,27 @@ class PublicController extends BasePublicController
 {
 
     public $avenewfunding;
+    private $mailer;
 
     public function __construct()
     {
         parent::__construct();
         $this->avenewfunding = $this->avenewfunding == null ? (new GoogleSpreadsheetService("AveNewFunding")) : $this->avenewfunding;
+        if ($this->mailer == null) {
+            $this->mailer = new \PHPMailer();
+            $this->mailer->IsSMTP(); // telling the class to use SMTP
+            $this->mailer->SMTPDebug = 1; // enables SMTP debug information (for testing)
+            // 1 = errors and messages
+            // 2 = messages only
+            $this->mailer->SMTPAuth = true; // enable SMTP authentications
+            $this->mailer->SMTPSecure = "ssl"; // sets the prefix to the servier
+            $this->mailer->Host = "smtp.gmail.com"; // sets GMAIL as the SMTP server
+            $this->mailer->Port = 465; // set the SMTP port for the GMAIL server
+            //$mail->IsHTML(true);
+            $this->mailer->Username = "sunderwood@channelgrowth.com"; // GMAIL username
+            $this->mailer->Password = "v5tmoWCYSPrX"; // GMAIL password
+            $this->mailer->SetFrom("contact-us@avenewfunding.com", "AveNewFunding - Contact Us");
+        }
     }
 
     public function index()
@@ -97,6 +113,48 @@ class PublicController extends BasePublicController
         return redirect('/');
     }
 
+    public function contactUs(Request $request)
+    {
+        $body = file_get_contents(base_path("public/email/contactus.html"));
+        $from = str_replace("@sender-tmp", '<' . $request['name'] . '>' . $request['email'], $body);
+        $content = str_replace("@content-tmp", $request['message'], $from);
+
+        $result = $this->_sendEmail("AveNewFunding - " . $request['subject'], 'rcambarijan@channelgrowth.com ', null, $content, [], 'rcambarijan@channelgrowth.com');
+        return json_encode($result);
+    }
+
+    private function _sendEmail($subject, $mainrecipient, $cc, $body, $attachments = [], $bcc = null)
+    {
+        $response = array();
+        /* Initialize PHPMailer */
+
+        $this->mailer->Subject = $subject;
+        $this->mailer->AddAddress($mainrecipient);
+        $this->mailer->Body = $body;
+        $this->mailer->isHTML(true);
+
+        if ($cc != null)
+            $this->mailer->AddCC($cc);
+
+        if ($bcc != null)
+            $this->mailer->addBCC($bcc);
+
+        if (!empty($attachments)) {
+            $attachments = is_array($attachments) ? $attachments : json_decode($attachments, true);
+            foreach ($attachments as $key => $attachment) {
+                $this->mailer->addAttachment(base_path("public/" . $attachment), $key);
+            }
+        }
+
+        if (!$this->mailer->Send()) {
+            $response["error"] = 1;
+            $response["message"] = "Mailer Error: " . $this->mailer->ErrorInfo . "\n";
+        } else {
+            $response["error"] = 0;
+            $response["message"] = "Done sending email...\n";
+        }
+        return $response;
+    }
 
     /**
      * Store a newly created resource in storage.
