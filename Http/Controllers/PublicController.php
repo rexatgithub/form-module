@@ -4,6 +4,7 @@ use App\Services\GoogleSpreadsheetService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
+use Modules\Blog\Repositories\PostRepository;
 use Modules\Core\Http\Controllers\BasePublicController;
 
 class PublicController extends BasePublicController
@@ -154,6 +155,11 @@ class PublicController extends BasePublicController
             $response["message"] = "Done sending email...\n";
         }
         return $response;
+    }
+
+    public function recents(PostRepository $post){
+        $latestPosts = $post->latest(3);
+        return compact('latestPosts');
     }
 
     /**
